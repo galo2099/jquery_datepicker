@@ -18,19 +18,12 @@ module JqueryDatepicker
     def datepicker(object_name, method, options = {})
       input_tag =  JqueryDatepicker::InstanceTag.new(object_name, method, self, options.delete(:object))
       dp_options, tf_options = JqueryDatepicker::split_options(options)
-      dp_options.merge!(:altField => "##{input_tag.get_name_and_id(tf_options)["id"]}", :altFormat => 'yy-mm-dd')
+      alt_field_tag_id = input_tag.get_name_and_id(tf_options)["id"]
+      dp_options.merge!(:altField => "##{alt_field_tag_id}", :altFormat => 'yy-mm-dd')
       text_field_tag_id = input_tag.get_name_and_id(tf_options)["id"] + "_datepicker_ui"
       html = input_tag.to_input_field_tag("text", tf_options.merge(:id => text_field_tag_id, :name => ""))
       html += input_tag.to_input_field_tag("hidden", tf_options)
-      html += javascript_tag <<-EOL
-        jQuery(document).ready(function() {
-          jQuery('##{h text_field_tag_id}').datepicker(#{dp_options.to_json})
-          var current_datepicker_format =  jQuery('##{h text_field_tag_id}').datepicker("option", "dateFormat");
-          jQuery('##{h text_field_tag_id}').datepicker("option", "dateFormat", "yy-mm-dd");
-          jQuery('##{h text_field_tag_id}').datepicker("setDate", '#{input_tag.value(input_tag.object)}');
-          jQuery('##{h text_field_tag_id}').datepicker("option", "dateFormat", current_datepicker_format);
-        });
-      EOL
+      html += datepicker_common_javascript(text_field_tag_id, alt_field_tag_id, input_tag.value(input_tag.object), dp_options)
       html.html_safe
     end
 
@@ -41,20 +34,27 @@ module JqueryDatepicker
       text_field_tag_id = name + "_datepicker_ui"
       html = text_field_tag("", nil, tf_options.merge(:id => text_field_tag_id, :name => ""))
       html += hidden_field_tag(name, value, tf_options)
-      html += javascript_tag <<-EOL
-        jQuery(document).ready(function() {
-          jQuery('##{h text_field_tag_id}').datepicker(#{dp_options.to_json})
-          var current_datepicker_format =  jQuery('##{h text_field_tag_id}').datepicker("option", "dateFormat");
-          jQuery('##{h text_field_tag_id}').datepicker("option", "dateFormat", "yy-mm-dd");
-          jQuery('##{h text_field_tag_id}').datepicker("setDate", '#{value}');
-          jQuery('##{h text_field_tag_id}').datepicker("option", "dateFormat", current_datepicker_format);
-        });
-      EOL
+      html += datepicker_common_javascript(text_field_tag_id, name, value, dp_options)
       html.html_safe
     end
 
+   private
+    def datepicker_common_javascript(tag_id, alt_tag_id, value, options)
+      javascript_tag <<-EOL
+        jQuery(document).ready(function() {
+          var text_field_tag = jQuery('##{h tag_id}');
+          text_field_tag.datepicker(#{options.to_json});
+          var current_datepicker_format = text_field_tag.datepicker("option", "dateFormat");
+          text_field_tag.datepicker("option", "dateFormat", "yy-mm-dd");
+          text_field_tag.datepicker("setDate", '#{value}');
+          text_field_tag.datepicker("option", "dateFormat", current_datepicker_format);
+          text_field_tag.change(function(){
+            if (!jQuery(this).val()) jQuery("##{h alt_tag_id}").val('');
+          });
+        });
+      EOL
+    end
   end
-
 end
 
 module JqueryDatepicker::FormBuilder
