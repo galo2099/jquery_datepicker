@@ -16,14 +16,19 @@ module JqueryDatepicker
 
     # Mehtod that generates datepicker input field inside a form
     def datepicker(object_name, method, options = {})
-      input_tag =  JqueryDatepicker::InstanceTag.new(object_name, method, self, options.delete(:object))
       dp_options, tf_options = JqueryDatepicker::split_options(options)
-      alt_field_tag_id = input_tag.get_name_and_id(tf_options)["id"]
+
+      instance_tag = JqueryDatepicker::InstanceTag.new(object_name, method, self, options)
+      alt_field_tag_id = instance_tag.get_name_and_id()["id"]
+      text_field_tag_id = alt_field_tag_id + "_datepicker_ui"
+
+      text_tag = ActionView::Helpers::Tags::TextField.new(object_name, method, self, tf_options.merge(:id => text_field_tag_id, :name => ""))
+      hidden_tag = ActionView::Helpers::Tags::HiddenField.new(object_name, method, self, tf_options)
+      html = text_tag.render
+      html += hidden_tag.render
+
       dp_options.merge!(:altField => "##{alt_field_tag_id}", :altFormat => 'yy-mm-dd')
-      text_field_tag_id = input_tag.get_name_and_id(tf_options)["id"] + "_datepicker_ui"
-      html = input_tag.to_input_field_tag("text", tf_options.merge(:id => text_field_tag_id, :name => ""))
-      html += input_tag.to_input_field_tag("hidden", tf_options)
-      html += datepicker_common_javascript(text_field_tag_id, alt_field_tag_id, input_tag.value(input_tag.object), dp_options)
+      html += datepicker_common_javascript(text_field_tag_id, alt_field_tag_id, instance_tag.get_value(instance_tag.get_object), dp_options)
       html.html_safe
     end
 
@@ -57,20 +62,23 @@ module JqueryDatepicker
   end
 end
 
-module JqueryDatepicker::FormBuilder
-  def datepicker(method, options = {})
-    @template.datepicker(@object_name, method, objectify_options(options))
-  end
-end
-
-class JqueryDatepicker::InstanceTag < ActionView::Helpers::InstanceTag
-
-  # Extending ActionView::Helpers::InstanceTag module to make Rails build the name and id
-  # Just returns the options before generate the HTML in order to use the same id and name (see to_input_field_tag mehtod)
-
+class JqueryDatepicker::InstanceTag < ActionView::Helpers::Tags::Base
   def get_name_and_id(options = {})
     add_default_name_and_id(options)
     options
   end
 
+  def get_value(object)
+    value(object)
+  end
+
+  def get_object
+    object
+  end
+end
+
+module JqueryDatepicker::FormBuilder
+  def datepicker(method, options = {})
+    @template.datepicker(@object_name, method, objectify_options(options))
+  end
 end
